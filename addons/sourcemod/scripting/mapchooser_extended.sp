@@ -84,7 +84,7 @@ enum
 public Plugin:myinfo =
 {
 	name = "MapChooser Extended",
-	author = "Powerlord, Zuko, and AlliedModders LLC",
+	author = "Powerlord, Zuko, Nanochip, and AlliedModders LLC",
 	description = "Automated Map Voting with Extensions",
 	version = MCE_VERSION,
 	url = "https://forums.alliedmods.net/showthread.php?t=156974"
@@ -160,6 +160,7 @@ new Handle:g_Cvar_MarkCustomMaps = INVALID_HANDLE;
 new Handle:g_Cvar_RandomizeNominations = INVALID_HANDLE;
 new Handle:g_Cvar_HideTimer = INVALID_HANDLE;
 new Handle:g_Cvar_NoVoteOption = INVALID_HANDLE;
+new Handle:g_Cvar_IntermissionVote = INVALID_HANDLE;
 
 /* Mapchooser Extended Data Handles */
 new Handle:g_OfficialList = INVALID_HANDLE;
@@ -260,6 +261,7 @@ public OnPluginStart()
 	g_Cvar_RandomizeNominations = CreateConVar("mce_randomizeorder", "0", "Randomize map order?", _, true, 0.0, true, 1.0);
 	g_Cvar_HideTimer = CreateConVar("mce_hidetimer", "0", "Hide the MapChooser Extended warning timer", _, true, 0.0, true, 1.0);
 	g_Cvar_NoVoteOption = CreateConVar("mce_addnovote", "1", "Add \"No Vote\" to vote menu?", _, true, 0.0, true, 1.0);
+	g_Cvar_IntermissionVote = CreateConVar("mce_intermissionvote", "0", "Have the vote pop up during intermission period. Edit mp_chattime cvar to change length of intermission period.", _, true, 0.0, true, 1.0);
 
 	RegAdminCmd("sm_mapvote", Command_Mapvote, ADMFLAG_CHANGEMAP, "sm_mapvote - Forces MapChooser to attempt to run a map vote now.");
 	RegAdminCmd("sm_setnextmap", Command_SetNextmap, ADMFLAG_CHANGEMAP, "sm_setnextmap <map>");
@@ -320,6 +322,8 @@ public OnPluginStart()
 				HookEvent("teamplay_restart_round", Event_TFRestartRound);
 				HookEvent("arena_win_panel", Event_TeamPlayWinPanel);
 				HookEvent("pve_win_panel", Event_MvMWinPanel);
+				HookEvent("tf_game_over", Event_OnGameOver);
+				HookEvent("teamplay_game_over", Event_OnGameOver);
 			}
 			
 			case Engine_NuclearDawn:
@@ -575,7 +579,7 @@ public OnMapTimeLeftChanged()
 {
 	if (GetArraySize(g_MapList))
 	{
-		SetupTimeleftTimer();
+		if (!GetConVarBool(g_Cvar_IntermissionVote)) SetupTimeleftTimer();
 	}
 }
 
@@ -702,6 +706,17 @@ public Event_TFRestartRound(Handle:event, const String:name[], bool:dontBroadcas
 {
 	/* Game got restarted - reset our round count tracking */
 	g_TotalRounds = 0;	
+}
+
+public Event_OnGameOver(Handle:event, const String:name[], bool:dontBroadcast)
+{
+	if (GetConVarBool(g_Cvar_IntermissionVote))
+	{
+		if (!g_WarningInProgress || g_WarningTimer == INVALID_HANDLE)
+		{
+			SetupWarningTimer(WarningType_Vote, MapChange_MapEnd);
+		}
+	}
 }
 
 public Event_TeamPlayWinPanel(Handle:event, const String:name[], bool:dontBroadcast)
